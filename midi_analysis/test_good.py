@@ -688,7 +688,7 @@ class DynamicMusicSheet:
             # Add some vertical variation for a more natural effect
             particle_y = y - 10 + random.uniform(-5, 5)
             self.particles.append(Particle(particle_x, particle_y))
-
+##
 
 
 
