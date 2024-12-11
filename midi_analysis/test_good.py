@@ -960,7 +960,7 @@ class DynamicMusicSheet:
         closest_time_diff = float('inf')
 
         # Debug: Print the student note being processed
-        print(f"[DEBUG] Processing student note: {student_note}")
+        #print(f"[DEBUG] Processing student note: {student_note}")
 
         # Find the closest reference note with matching pitch within tolerance
         for ref_pitch, ref_start, ref_end, ref_velocity in self.ref_notes:
@@ -975,7 +975,7 @@ class DynamicMusicSheet:
             ref_pitch, ref_start, ref_end, ref_velocity = closest_ref_note
 
             # Debug: Output the matching reference note details
-            print(f"[DEBUG] Matched student note {student_note} with reference note {closest_ref_note}")
+            #print(f"[DEBUG] Matched student note {student_note} with reference note {closest_ref_note}")
 
             # Determine the color for visualization
             color = self.colors['correct']  # Green (correct note)
@@ -999,10 +999,10 @@ class DynamicMusicSheet:
             self.update_duration_scores(duration_score, bar_number)
 
             # Debug: Output the duration score for this note
-            print(f"[DEBUG] Duration score={duration_score}")
+            #print(f"[DEBUG] Duration score={duration_score}")
         else:
             # No match found, mark the note as incorrect
-            print(f"[DEBUG] No match found for student note: {student_note}")
+            #print(f"[DEBUG] No match found for student note: {student_note}")
             self.note_list.append((pitch, start_time, end_time, False, self.colors['incorrect'], velocity))
             self.current_combo = 0  # Reset combo on incorrect note
             self.combo_last_increase_time = None  # Reset combo increase time
@@ -1011,7 +1011,7 @@ class DynamicMusicSheet:
         self.overall_score['note_count'] += 1
 
         # Debug: Output current combo and max combo
-        print(f"[DEBUG] Current Combo: {self.current_combo}, Max Combo: {self.max_combo}")
+        #print(f"[DEBUG] Current Combo: {self.current_combo}, Max Combo: {self.max_combo}")
 
 
 
@@ -1678,7 +1678,7 @@ class DynamicMusicSheet:
             closest_time_diff = float('inf')
 
             # Debug: Print the student note being processed
-            print(f"[DEBUG] (report_compare) Processing student note: {note}")
+            #print(f"[DEBUG] (report_compare) Processing student note: {note}")
 
             # Find the closest reference note with matching pitch within tolerance
             for ref_pitch, ref_start, ref_end, ref_velocity in self.ref_notes:
@@ -1693,7 +1693,7 @@ class DynamicMusicSheet:
                 ref_pitch, ref_start, ref_end, ref_velocity = closest_ref_note
 
                 # Debug: Output the matching reference note details
-                print(f"[DEBUG] (report_compare) Matched student note {note} with reference note {closest_ref_note}")
+                #print(f"[DEBUG] (report_compare) Matched student note {note} with reference note {closest_ref_note}")
 
                 # Calculate velocity difference
                 vel_diff = ref_velocity - velocity
