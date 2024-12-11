@@ -80,7 +80,10 @@ def split_midi_by_bars(input_file, output_dir=None):
             bar_midi.write(output_path)
             print(f"Saved bar {bar_number} to {output_path}")
         else:
-            pred_label, pred_value = get_ar_vl_inference(bar_midi)
+            if len(bar_midi.instruments[0].notes) == 0:
+                pred_value = np.zeros(4)
+            else:
+                pred_label, pred_value = get_ar_vl_inference(bar_midi)
             bar_inference_values.append(pred_value)
         
         # Move to the next bar
@@ -209,6 +212,10 @@ def draw_ar_vl_path(reference, student, output_path=None):
         x_proxy = softmax_s * np.cos(quadrant_angle_proxy)
         theta = np.arctan2(y_proxy.sum(), x_proxy.sum()) + 2 * np.pi
 
+        ## Step 4: All zeros exception
+        if np.sum(quadrant_scores) == 0:
+            r = 0
+            theta = 0
         return r, theta
     def transform_to_arousal_valence_centroid(quadrant_scores):
         """

@@ -215,7 +215,7 @@ class DynamicMusicSheet:
         self.is_recording = threading.Event()
         
         # Reference Midi File Initialization
-        self.reference_path = '2_t2.mid'
+        self.reference_path = '3_t3.mid'
 
         self.ref_notes, self.ref_control = self.load_reference_midi(self.reference_path)
         self.total_duration = max([end for _, _, end, _ in self.ref_notes])
