@@ -1,0 +1,27 @@
+task:
+  labels:
+  - HV
+  - LV
+  cls_type: V
+  num_of_dim: 2
+midi:
+  feature_path: ./dataset/magenta_midi
+  pad_idx: 388
+hparams:
+  dataset: EMOPIA
+  midi: magenta
+  task: valence
+  r: 8
+  lstm_hidden_dim: 128
+  embedding_size: 300
+  batch_size: 16
+  num_workers: 8
+  lr: 0.0005
+  weight_decay: 0.0001
+  T_0: 25
+  max_epochs: 400
+  gpus: 1
+  distributed_backend: dp
+  deterministic: true
+  benchmark: false
+  reproduce: true
