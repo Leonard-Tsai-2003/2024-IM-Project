@@ -342,6 +342,7 @@ class DynamicMusicSheet:
         self.report_velocity_tolerance_text = ''
         self.report_time_tolerance_input_active = False  # To track if BPM input is active
         self.report_velocity_tolerance_input_active = False  # To track if time tolerance input is active
+        self.scroll_x = 0 #for the horizontal scrollable report notes
 
         #fixing duration score
         self.ref_duration_list = []
@@ -1602,7 +1603,10 @@ class DynamicMusicSheet:
         self.re_adjust_note_list()
         self.generate_performance_report()
         self.generate_overall_comment()
-        self.generate_ar_vl_path()
+        if self.student_midi_file is not None:
+            self.generate_ar_vl_path()
+        else:
+            print("ERROR: Student performance did not write to file")
         print(self.performance_report)
         
 
@@ -1678,7 +1682,7 @@ class DynamicMusicSheet:
             closest_time_diff = float('inf')
 
             # Debug: Print the student note being processed
-            print(f"[DEBUG] (report_compare) Processing student note: {note}")
+            #print(f"[DEBUG] (report_compare) Processing student note: {note}")
 
             # Find the closest reference note with matching pitch within tolerance
             for ref_pitch, ref_start, ref_end, ref_velocity in self.ref_notes:
@@ -1693,7 +1697,7 @@ class DynamicMusicSheet:
                 ref_pitch, ref_start, ref_end, ref_velocity = closest_ref_note
 
                 # Debug: Output the matching reference note details
-                print(f"[DEBUG] (report_compare) Matched student note {note} with reference note {closest_ref_note}")
+                #print(f"[DEBUG] (report_compare) Matched student note {note} with reference note {closest_ref_note}")
 
                 # Calculate velocity difference
                 vel_diff = ref_velocity - velocity
@@ -1711,7 +1715,7 @@ class DynamicMusicSheet:
                 temp_note_list.append((pitch, start_time, end_time, True, color, velocity))
             else:
                 # No match found, mark the note as incorrect
-                print(f"[DEBUG] (report_compare) No match found for student note: {note}")
+                #print(f"[DEBUG] (report_compare) No match found for student note: {note}")
                 #self.note_list.append((pitch, start_time, end_time, False, self.colors['incorrect'], velocity))
                 temp_note_list.append((pitch, start_time, end_time, False, self.colors['incorrect'], velocity))
         #return temp_note_list
@@ -1801,103 +1805,79 @@ class DynamicMusicSheet:
         # Store note rects for hover detection
         note_rects = []  # Each item: (rect, pitch, velocity)
 
-        for i in range(amount_of_lines):
-            current_visualize_line = i
+        #1211: making the horizontal scrollable surface for the notes
+        self.horizontal_scroll_surface_width = self.screen_width * amount_of_lines
+        self.horizontal_scroll_surface_height = self.screen_height * 2 / 3
+        self.horizontal_scroll_surface = pygame.Surface((self.horizontal_scroll_surface_width, self.horizontal_scroll_surface_height))
+        self.horizontal_scroll_surface.fill((255, 255, 255))  # White background
+        self.horizontal_scroll_speed = self.screen_width * 2 / 8
+        self.horizontal_scroll_surface_mouse_pos_rect = pygame.Rect(0, visualize_offset_y - self.scroll_y, self.screen_width, (self.screen_height * 2 / 3))
 
-            # Draw reference notes (gray)
-            note_segment = [
-                x for x in self.ref_notes 
-                if (x[1] >= (current_visualize_line) * bar_duration * 4 and x[1] < (current_visualize_line + 1) * bar_duration * 4)
-            ]
-            for pitch, start, end, velocity in note_segment:
-                y = base_y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 - (pitch - 71) * self.pitch_y_diff
-                x = self.x_intercept + (start - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                width = (end - start) * self.scaling_factor
-                rect = pygame.Rect(x, y, width, 8)
-                pygame.draw.rect(self.report_surface, (190, 190, 190), rect)
+        # Draw reference notes (gray)
+        for pitch, start, end, velocity in self.ref_notes:
+            y = (self.screen_height * 2 / 9) - (pitch - 71) * self.pitch_y_diff # 2/3 * 2/3 * 1/2
+            x = self.x_intercept + start * self.scaling_factor
+            width = (end - start) * self.scaling_factor
+            rect = pygame.Rect(x, y, width, 8)
+            pygame.draw.rect(self.horizontal_scroll_surface, (190, 190, 190), rect)
 
-            # Draw student notes with their assigned colors
-            note_segment = [
-                x for x in self.note_list 
-                if (x[1] >= (current_visualize_line) * bar_duration * 4 and x[1] < (current_visualize_line + 1) * bar_duration * 4)
-            ]
-            for note in note_segment:
-                pitch, start, end, correct, color, velocity = note
-                y = base_y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 - (pitch - 71) * self.pitch_y_diff
-                x = self.x_intercept + (start - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                width = (end - start) * self.scaling_factor
-                rect = pygame.Rect(x, y, width, 8)
-                pygame.draw.rect(self.report_surface, color, rect)
+        # Draw student notes with their assigned colors
+        for note in self.note_list:
+            pitch, start, end, correct, color, velocity = note
+            y = (self.screen_height * 2 / 9) - (pitch - 71) * self.pitch_y_diff
+            x = self.x_intercept + start * self.scaling_factor
+            width = (end - start) * self.scaling_factor
+            rect = pygame.Rect(x, y, width, 8)
+            pygame.draw.rect(self.horizontal_scroll_surface, color, rect)
 
-                # Store info for hover tooltips
-                note_rects.append((rect, pitch, velocity))
+            # Store info for hover tooltips
+            note_rects.append((rect, pitch, velocity))
 
-            # Draw reference pedal (gray)
-            control_segment = [
-                x for x in self.ref_control 
-                if (x[2] >= (current_visualize_line)*bar_duration*4 and x[2] < (current_visualize_line + 1) * bar_duration*4)
-            ]
-            first_control = True
-            last_control = -1
-            for number, value, time in control_segment:
-                if number == 64:
-                    if value == 0: # release
-                        if first_control:
-                            y1 = base_y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff
-                            y2 = y1 + 10
-                            x1 = self.x_intercept
-                            x2 = self.x_intercept + (time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                            points = [(x1, y2), (x2, y2), (x2, y1)]
-                            pygame.draw.lines(self.report_surface, (190, 190, 190), False, points, width=3)
-                            first_control = False
-                        else:
-                            y1 = base_y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff
-                            y2 = y1 + 10
-                            x1 = self.x_intercept + (pedal_pressed_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                            x2 = self.x_intercept + (time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                            points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
-                            pygame.draw.lines(self.report_surface, (190, 190, 190), False, points, width=3)
-                    elif value > 0: # pressed
-                        pedal_pressed_time = time
-                        if first_control:
-                            first_control = False
-                    last_control = value
-                else:
-                    continue
-            if last_control > 0: # pedal pressed and unreleased
-                y1 = base_y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff
-                y2 = y1 + 10
-                x1 = self.x_intercept + (pedal_pressed_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                x2 = self.x_intercept + (bar_duration * 4) * self.scaling_factor
-                points = [(x1, y1), (x1, y2), (x2, y2)]
-                pygame.draw.lines(self.report_surface, (190, 190, 190), False, points, width=3)
+        # Draw reference pedal (gray)
+        first_control = True
+        last_control = -1
+        for number, value, time in self.ref_control:
+            if number == 64:
+                if value == 0: # release
+                    if first_control:
+                        y1 = (self.screen_height * 2 / 9) + self.control_y_diff
+                        y2 = y1 + 10
+                        x1 = self.x_intercept
+                        x2 = self.x_intercept + time * self.scaling_factor
+                        points = [(x1, y2), (x2, y2), (x2, y1)]
+                        pygame.draw.lines(self.horizontal_scroll_surface, (190, 190, 190), False, points, width=3)
+                        first_control = False
+                    else:
+                        y1 = (self.screen_height * 2 / 9) + self.control_y_diff
+                        y2 = y1 + 10
+                        x1 = self.x_intercept + pedal_pressed_time * self.scaling_factor
+                        x2 = self.x_intercept + time * self.scaling_factor
+                        points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
+                        pygame.draw.lines(self.horizontal_scroll_surface, (190, 190, 190), False, points, width=3)
+                elif value > 0: # pressed
+                    pedal_pressed_time = time
+                    if first_control:
+                        first_control = False
+                last_control = value
+            else:
+                continue
+        if last_control > 0: # pedal pressed and unreleased
+            y1 = (self.screen_height * 2 / 9) + self.control_y_diff
+            y2 = y1 + 10
+            x1 = self.x_intercept + pedal_pressed_time * self.scaling_factor
+            x2 = self.x_intercept + (bar_duration * 4) * amount_of_lines * self.scaling_factor
+            points = [(x1, y1), (x1, y2), (x2, y2)]
+            pygame.draw.lines(self.horizontal_scroll_surface, (190, 190, 190), False, points, width=3)
 
-            # Student pedal
-            control_segment = [
-                x for x in self.pedal_list
-                if (x[1] >= (current_visualize_line)*bar_duration*4 and x[0] < (current_visualize_line + 1)*bar_duration*4)
-            ]
-            for pedal in control_segment:
-                pedal_start_time, pedal_end_time, correctness, color = pedal
-                start_time_within_line = pedal_start_time >= (current_visualize_line) * bar_duration * 4
-                end_time_within_line = pedal_end_time < (current_visualize_line + 1) * bar_duration * 4
-                y1 = base_y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff + 5
-                y2 = y1 + 10
-                if start_time_within_line:
-                    x1 = self.x_intercept + (pedal_start_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                else:
-                    x1 = self.x_intercept
-                if end_time_within_line:
-                    x2 = self.x_intercept + (pedal_end_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                else:
-                    x2 = self.x_intercept + (bar_duration * 4) * self.scaling_factor
-                if not start_time_within_line:
-                    points = [(x1, y2), (x2, y2), (x2, y1)]
-                elif not end_time_within_line:
-                    points = [(x1, y1), (x1, y2), (x2, y2)]
-                else:
-                    points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
-                pygame.draw.lines(self.report_surface, color, False, points, width=3)
+        # Student pedal
+        for pedal in self.pedal_list:
+            pedal_start_time, pedal_end_time, correctness, color = pedal
+            y1 = (self.screen_height * 2 / 9) + self.control_y_diff + 5
+            y2 = y1 + 10
+            x1 = self.x_intercept + pedal_start_time * self.scaling_factor
+            x2 = self.x_intercept + pedal_end_time  * self.scaling_factor
+            points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
+            pygame.draw.lines(self.horizontal_scroll_surface, color, False, points, width=3)
 
         # Draw the close, print, and settings buttons at the bottom
         close_button_x = (self.screen_width - 100) // 4
@@ -1939,14 +1919,27 @@ class DynamicMusicSheet:
 
         # Check if mouse is hovering over a note
         for rect, pitch, velocity in note_rects:
-            adjusted_rect = pygame.Rect(rect.x, rect.y - self.scroll_y, rect.width, rect.height)
+            #y = self.y_intercept + self.screen_height / 4 - (pitch - 71) * self.pitch_y_diff
+            #x = self.x_intercept + start * self.scaling_factor
+            # on horizontal_scroll_surface
+            adjusted_rect = pygame.Rect(rect.x - self.scroll_x, rect.y + visualize_offset_y - self.scroll_y, rect.width, rect.height)
             if adjusted_rect.collidepoint(mouse_pos):
                 # Show tooltip
-                tooltip_text = f"P{pitch} V{velocity}"
-                self.draw_tooltip(self.report_surface, tooltip_text, mouse_x, mouse_y + self.scroll_y)
+                pitch_class = pitch % 12
+                syllable = self.pitch_class_to_syllable.get(pitch_class, '')
+                tooltip_text = f"P{pitch} V{velocity} {syllable}"
+                self.draw_tooltip(self.horizontal_scroll_surface, tooltip_text, mouse_x + self.scroll_x, mouse_y - visualize_offset_y + self.scroll_y)
                 break
 
+        #boundary of horizontal scroll surface
+        testing = True
+        if testing:
+            pygame.draw.line(self.horizontal_scroll_surface, (0, 0, 0), (0, 0), (self.horizontal_scroll_surface_width, 0), 3)
+            pygame.draw.line(self.horizontal_scroll_surface, (0, 0, 0), (0, self.horizontal_scroll_surface_height - 1)
+                             , (self.horizontal_scroll_surface_width, self.horizontal_scroll_surface_height - 1), 3)
+
         self.screen.blit(self.report_surface, (0, -self.scroll_y))
+        self.screen.blit(self.horizontal_scroll_surface, (-self.scroll_x, visualize_offset_y - self.scroll_y))
 
 
     def update_bpm_and_tolerance(self, new_bpm, new_time_tolerance):
@@ -2203,9 +2196,15 @@ class DynamicMusicSheet:
                             self.handle_text_input(event, target="report_settings_velocity_tolerance")
 
                 elif event.type == pygame.MOUSEWHEEL:
+                    mouse_pos = pygame.mouse.get_pos()
+                    #horizontal_scroll_surface_mouse_pos_rect
                     if self.showing_report:
-                        self.scroll_y -= event.y * self.scroll_speed
-                        self.scroll_y = max(0, min(self.scroll_y, self.surface_height - self.screen_height))  # Keep scroll within bounds
+                        if self.horizontal_scroll_surface_mouse_pos_rect.collidepoint(mouse_pos):
+                            self.scroll_x -= event.y * self.horizontal_scroll_speed
+                            self.scroll_x = max(0, min(self.scroll_x, self.horizontal_scroll_surface_width - self.screen_width))  # Keep scroll within bounds
+                        else:
+                            self.scroll_y -= event.y * self.scroll_speed
+                            self.scroll_y = max(0, min(self.scroll_y, self.surface_height - self.screen_height))  # Keep scroll within bounds
 
             # 清空畫面
             self.screen.fill((0, 0, 0))
