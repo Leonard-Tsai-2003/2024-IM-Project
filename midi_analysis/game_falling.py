@@ -229,7 +229,7 @@ class DynamicMusicSheet:
         self.font_title = pygame.font.SysFont("Verdana", 15, bold = True)
         self.font_report_title = pygame.font.SysFont("Verdana", 30, bold = True) # changed 1204
         self.font_note = pygame.font.SysFont("Verdana", 13)
-        self.font_report = pygame.font.SysFont("Verdana", 15)
+        self.font_report = pygame.font.SysFont("Verdana", 18)#1218
         self.legend_font = pygame.font.SysFont(None, 22)
 
         # Test font availability
@@ -1766,6 +1766,31 @@ class DynamicMusicSheet:
         # Draw text
         surface.blit(text_surface, (tooltip_x + padding, tooltip_y + padding))
         
+    def draw_all_bar_markers(self, surface, bar_duration, scaling_factor, x_intercept, surface_height):
+        """
+        Draw vertical markers for every bar in the report.
+        """
+        current_time = 0
+        bar_number = 1
+        bar_marker_color = (200, 200, 200)  # Light gray for bar lines
+        bar_label_color = (0, 0, 0)  # Black for bar labels
+
+        while current_time <= self.total_duration:
+            x = x_intercept + current_time * scaling_factor
+
+            # Draw vertical line for the bar marker
+            pygame.draw.line(surface, bar_marker_color, (x, 0), (x, surface_height), 1)
+
+            # Add bar number label above the line
+            label_surface = self.font_note.render(f"Bar {bar_number}", True, bar_label_color)
+            label_x = x - label_surface.get_width() // 2
+            label_y = 5  # Position slightly above the bar marker
+            surface.blit(label_surface, (label_x, label_y))
+
+            # Move to the next bar
+            current_time += bar_duration
+            bar_number += 1
+
 
     def draw_report(self):
         self.y_intercept = self.screen_height * 1 / 4
@@ -1797,7 +1822,7 @@ class DynamicMusicSheet:
 
         # 報表文字(Performance Metrics等)繪製
         report_lines = self.performance_report.split('\n')
-        line_height = 20
+        line_height = 22
         header_y = 20
         for i, line in enumerate(report_lines):
             if line.strip() in ["Performance Metrics", "AI Comments", "Color Representation"]:
@@ -1808,9 +1833,9 @@ class DynamicMusicSheet:
 
         #1212: draw ar_vl_plot on the report ui
         if self.ar_vl_path is not None:
-            self.ar_vl_plot_loc_x = self.screen_width / 2
+            self.ar_vl_plot_loc_x = self.screen_width / 2 + self.screen_width / 32
             self.ar_vl_plot_loc_y = header_y
-            self.ar_vl_plot_width = self.screen_width / 3
+            self.ar_vl_plot_width = self.screen_width * 0.4
             ar_vl_text_surface = self.font_report_title.render("The Arousal-Valence Model", True, (0, 0, 0))
             self.report_surface.blit(ar_vl_text_surface, (self.ar_vl_plot_loc_x, self.ar_vl_plot_loc_y))
 
@@ -1922,6 +1947,18 @@ class DynamicMusicSheet:
             x2 = self.x_intercept + (bar_duration * 4) * amount_of_lines * self.scaling_factor * horizontal_length_factor
             points = [(x1, y1), (x1, y2), (x2, y2)]
             pygame.draw.lines(self.horizontal_scroll_surface, (190, 190, 190), False, points, width=3)
+            
+        # Calculate bar duration in seconds (8 beats at 108 BPM)
+        bar_duration = 8 * 60 / self.BPM  # 4.444 seconds per bar
+
+        # Draw all bar markers in the horizontal scroll surface
+        self.draw_all_bar_markers(
+            self.horizontal_scroll_surface,
+            bar_duration=bar_duration,
+            scaling_factor=self.scaling_factor * horizontal_length_factor,
+            x_intercept=self.x_intercept,
+            surface_height=self.horizontal_scroll_surface_height
+        )
 
         # Student pedal 同樣延伸與下移
         for pedal in self.pedal_list:
