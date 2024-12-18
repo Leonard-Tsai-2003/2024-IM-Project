@@ -227,7 +227,7 @@ class DynamicMusicSheet:
 
         # Attempt to use system font
         self.font_title = pygame.font.SysFont("Verdana", 15, bold = True)
-        self.font_report_title = pygame.font.SysFont("Verdana", 56, bold = True) # changed 1204
+        self.font_report_title = pygame.font.SysFont("Verdana", 30, bold = True) # changed 1204
         self.font_note = pygame.font.SysFont("Verdana", 13)
         self.font_report = pygame.font.SysFont("Verdana", 15)
         self.legend_font = pygame.font.SysFont(None, 22)
@@ -298,6 +298,9 @@ class DynamicMusicSheet:
         #target line
         self.target_line_y = self.screen_height - 200
         
+        self.control_y_diff = (self.screen_height / 4) + (self.screen_height / 12)
+
+        
 
         # Load and prepare GIF
         self.gif_path = "1126.gif"  # Replace with the correct path
@@ -342,6 +345,10 @@ class DynamicMusicSheet:
         self.report_velocity_tolerance_text = ''
         self.report_time_tolerance_input_active = False  # To track if BPM input is active
         self.report_velocity_tolerance_input_active = False  # To track if time tolerance input is active
+        self.scroll_x = 0 #for the horizontal scrollable report notes
+
+        #1212: making the ar_vl_plot
+        self.ar_vl_path = None
 
         #fixing duration score
         self.ref_duration_list = []
@@ -688,7 +695,7 @@ class DynamicMusicSheet:
             # Add some vertical variation for a more natural effect
             particle_y = y - 10 + random.uniform(-5, 5)
             self.particles.append(Particle(particle_x, particle_y))
-
+#
 
 
 
@@ -960,7 +967,7 @@ class DynamicMusicSheet:
         closest_time_diff = float('inf')
 
         # Debug: Print the student note being processed
-        print(f"[DEBUG] Processing student note: {student_note}")
+        #print(f"[DEBUG] Processing student note: {student_note}")
 
         # Find the closest reference note with matching pitch within tolerance
         for ref_pitch, ref_start, ref_end, ref_velocity in self.ref_notes:
@@ -975,7 +982,7 @@ class DynamicMusicSheet:
             ref_pitch, ref_start, ref_end, ref_velocity = closest_ref_note
 
             # Debug: Output the matching reference note details
-            print(f"[DEBUG] Matched student note {student_note} with reference note {closest_ref_note}")
+            #print(f"[DEBUG] Matched student note {student_note} with reference note {closest_ref_note}")
 
             # Determine the color for visualization
             color = self.colors['correct']  # Green (correct note)
@@ -999,10 +1006,10 @@ class DynamicMusicSheet:
             self.update_duration_scores(duration_score, bar_number)
 
             # Debug: Output the duration score for this note
-            print(f"[DEBUG] Duration score={duration_score}")
+            #print(f"[DEBUG] Duration score={duration_score}")
         else:
             # No match found, mark the note as incorrect
-            print(f"[DEBUG] No match found for student note: {student_note}")
+            #print(f"[DEBUG] No match found for student note: {student_note}")
             self.note_list.append((pitch, start_time, end_time, False, self.colors['incorrect'], velocity))
             self.current_combo = 0  # Reset combo on incorrect note
             self.combo_last_increase_time = None  # Reset combo increase time
@@ -1011,7 +1018,7 @@ class DynamicMusicSheet:
         self.overall_score['note_count'] += 1
 
         # Debug: Output current combo and max combo
-        print(f"[DEBUG] Current Combo: {self.current_combo}, Max Combo: {self.max_combo}")
+        #print(f"[DEBUG] Current Combo: {self.current_combo}, Max Combo: {self.max_combo}")
 
 
 
@@ -1127,20 +1134,19 @@ class DynamicMusicSheet:
         avg_timing = self.overall_score['timing'] / self.overall_score['count'] if self.overall_score['count'] > 0 else 0
         overall_duration_score = self.calculate_overall_duartion()
         avg_duration = overall_duration_score / self.overall_score['count'] if self.overall_score['count'] > 0 else 0
-        #avg_duration = self.overall_score.get('duration', 0) / self.overall_score['count'] if self.overall_score['count'] > 0 else 0
-        
+
         # Calculate overall average including all aspects
         overall_avg = (avg_pitch + avg_velocity + avg_timing + avg_duration) / 4
         sentiment_avg = (avg_velocity + avg_timing + avg_duration) / 3
 
-        # Generate report string
-        report = f"Note Accuracy: {avg_pitch:.2f}%\n\n"
+        # Start building the report with Performance Metrics title
+        report = "Performance Metrics\n\n"  # Bold styling handled by rendering font bold
+        report += f"Note Accuracy: {avg_pitch:.2f}%\n\n"
         report += f"Detail Scores (Sentiment Analysis): {sentiment_avg:.2f} / 100\n"
         report += f"  - Velocity Control: {avg_velocity:.2f} / 100\n"
         report += f"  - Timing Precision: {avg_timing:.2f} / 100\n"
         report += f"  - Duration Accuracy: {avg_duration:.2f} / 100\n\n"
 
-        # Add duration statistics if available
         duration_stats = self.get_duration_statistics()
         if duration_stats:
             report += f"Notes Analyzed (Velocity, Timing, Duration): {duration_stats['total_notes_analyzed']}/{duration_stats['total_notes_played']}\n\n"
@@ -1155,28 +1161,30 @@ class DynamicMusicSheet:
         else:
             report += "Keep practicing! Pay attention to timing and note durations to improve further."
 
-        # Save the report
         self.performance_report = report
         print("Performance Report Generated:")
         print(report)
+
 
     def generate_overall_comment(self):
         # Generate the response
         response_info, response = get_response(f"Reference:{get_midi_file(self.reference_path)}\n Student:{self.student_midi_file}")
         self.overall_comment = response_info.choices[0].message.content
-        
-        # Split the comment into words and group by every 10 words
+            
         words = self.overall_comment.split()
         formatted_comment = '\n'.join([' '.join(words[i:i+10]) for i in range(0, len(words), 10)])
 
-        # Add formatted comment to performance report
-        self.performance_report += f"\n\n{formatted_comment}"
-        
+        # Add formatted comment to performance report with "AI comments" heading
+        self.performance_report += f"\n\n\nAI Comments\n\n{formatted_comment}"
+
         # Print the formatted comment
+        
+        self.performance_report += f"\n\n\nColor Representation"
         print(formatted_comment)
 
+
     def generate_ar_vl_path(self):
-        draw_ar_vl_path(split_midi_by_bars(self.reference_path), 
+        return draw_ar_vl_path(split_midi_by_bars(self.reference_path), 
                         split_midi_by_bars(mido_to_pretty_midi(self.student_midi_file)))
 
 
@@ -1602,7 +1610,7 @@ class DynamicMusicSheet:
         self.generate_performance_report()
         self.generate_overall_comment()
         if self.student_midi_file is not None:
-            self.generate_ar_vl_path()
+            self.ar_vl_path = self.generate_ar_vl_path()
         else:
             print("ERROR: Student performance did not write to file")
         print(self.performance_report)
@@ -1730,142 +1738,210 @@ class DynamicMusicSheet:
         temp_note_list = []
         for note in self.note_list:
             pitch, start, end, correct, color, velocity = note
-            new_end = self.find_note_segment_off(pitch, start)["timestamp"]
+            temp = self.find_note_segment_off(pitch, start)
+            if temp != None:
+                new_end = temp["timestamp"]
+            else:
+                new_end = end
             temp_note_list.append((pitch, start, new_end, correct, color, velocity))
         self.note_list = temp_note_list
         
                 
-    def draw_report(self):
+    def draw_tooltip(self, surface, text, x, y):
+        """Draw a tooltip box with given text at the specified (x, y) position."""
+        padding = 5
+        font = self.font_note
+        text_surface = font.render(text, True, (0, 0, 0))
+        w = text_surface.get_width() + padding * 2
+        h = text_surface.get_height() + padding * 2
 
-        self.y_intercept = self.screen_height * 1 / 4
-        self.x_intercept = self.screen_width/10
+        # Position tooltip slightly offset from the mouse pointer
+        tooltip_x = x + 20
+        tooltip_y = y + 20
+
+        # Draw background and border
+        pygame.draw.rect(surface, (255, 255, 225), (tooltip_x, tooltip_y, w, h))
+        pygame.draw.rect(surface, (0, 0, 0), (tooltip_x, tooltip_y, w, h), 1)
+
+        # Draw text
+        surface.blit(text_surface, (tooltip_x + padding, tooltip_y + padding))
         
-        # calculation of the height of the report 
+
+    def draw_report(self):
+        self.y_intercept = self.screen_height * 1 / 4
+        self.x_intercept = self.screen_width / 10
+
+        # 設定放大係數
+        bar_scale_factor = 1.5
+        horizontal_length_factor = 2
+
+        # 根據 bar_scale_factor 放大音高線距
+        self.pitch_y_diff = (self.screen_height / 120) * bar_scale_factor
+
+        # 設定 note 厚度 (原為8，這裡放大)
+        note_thickness = int(8 * bar_scale_factor)
+
+        # 給予更多底部空間，使 boundary line 往下
+        extra_vertical_padding = 200
+
+        # 計算報表需要的總高度
         ref_midi_end_time = self.get_ref_midi_end_time()
         bar_duration = (240 / self.BPM)
         amount_of_bars = int(ref_midi_end_time // bar_duration) + 1
         amount_of_lines = (amount_of_bars // 4) + 1
-        self.surface_height = self.y_intercept + self.screen_height * 2 / 3 * (amount_of_lines + 1) # +1 is for the comments
-        # Draw a semi-transparent background
+        self.surface_height = self.y_intercept + self.screen_height * 2 / 3 * (amount_of_lines + 1)
+
         self.report_surface = pygame.Surface((self.screen_width, self.surface_height))
-        #self.report_surface.set_alpha(150)  # Semi-transparent background
-        self.report_surface.fill((255, 255, 255))  # White background
+        self.report_surface.fill((255, 255, 255))  # 白底
         self.scroll_speed = self.screen_height * 2 / 8
-        
-        self.scaling_factor = 1.3 * 1000 // (self.screen_width/self.BPM)
-        self.pitch_y_diff = self.screen_height / 120
-        self.control_y_diff = self.screen_height / 4 + self.screen_height / 12
 
-        # Draw title
-        #report_title_text = self.font_report_title.render(f"Results", True, (0, 0, 0)) #changed 1204
-        #self.report_surface.blit(report_title_text, (self.screen_width / 2, self.screen_height * 1 / 8))
-        
-        for i in range(amount_of_lines):
-            current_visualize_line = i
-
-            #reference notes
-            note_segment = [x for x in self.ref_notes if (x[1]>=(current_visualize_line)*bar_duration*4 and x[1] < (current_visualize_line + 1) * bar_duration*4)]
-            for pitch, start, end, velocity in note_segment:
-                y = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 -  (pitch - 71) * self.pitch_y_diff 
-                x = self.x_intercept + (start - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                width = (end - start) * self.scaling_factor
-                pygame.draw.rect(self.report_surface, (190, 190, 190), (x, y, width, 8))
-                text = self.font_note.render(f'P{pitch} V{velocity}', True, (0, 0, 0))
-                self.report_surface.blit(text, (x, y - 20))
-            
-            #student notes
-            note_segment = [x for x in self.note_list if (x[1]>=(current_visualize_line)*bar_duration*4 and x[1] < (current_visualize_line + 1) * bar_duration*4)]
-            for note in note_segment:
-                pitch, start, end, correct, color, velocity = note
-                y = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 -  (pitch - 71) * self.pitch_y_diff 
-                x = self.x_intercept + (start - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                width = (end - start) * self.scaling_factor
-                pygame.draw.rect(self.report_surface, color, (x, y, width, 8))
-                text = self.font_note.render(f'P{pitch} V{velocity}', True, (0, 0, 0))
-                self.report_surface.blit(text, (x, y + 10))
-            
-            #reference pedal
-            #number, value, time
-            control_segment = [x for x in self.ref_control if (x[2]>=(current_visualize_line)*bar_duration*4 and x[2] < (current_visualize_line + 1) * bar_duration*4)]
-            first_control = True # to see if the first control is release 
-            last_control = -1 # to find the last control type and deal with unreleased pedal out of the loop
-            for number, value, time in control_segment:
-                if number == 64:
-                    if value == 0: #release (draw)
-                        if first_control: # If pedal pressed inbetween the lines
-                            y1 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff
-                            y2 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff + 10
-                            x1 = self.x_intercept 
-                            x2 = self.x_intercept + (time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                            points = [(x1, y2), (x2, y2), (x2, y1)]
-                            pygame.draw.lines(self.report_surface, (190, 190, 190), False, points, width = 3) #width default 1
-                            first_control = False
-                        else:
-                            y1 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff
-                            y2 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff + 10
-                            x1 = self.x_intercept + (pedal_pressed_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                            x2 = self.x_intercept + (time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                            points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
-                            pygame.draw.lines(self.report_surface, (190, 190, 190), False, points, width = 3) #width default 1
-                        
-                    elif value > 0: #pressed
-                        pedal_pressed_time = time
-                        if first_control:
-                            first_control = False
-                    last_control = value
-                else:
-                    continue
-            if last_control > 0: # pedal pressed and unreleased
-                y1 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff
-                y2 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff + 10
-                x1 = self.x_intercept + (pedal_pressed_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                x2 = self.x_intercept + (bar_duration * 4) * self.scaling_factor
-                points = [(x1, y1), (x1, y2), (x2, y2)]
-                pygame.draw.lines(self.report_surface, (190, 190, 190), False, points, width = 3) #width default 1
-
-
-            #student pedal
-            control_segment = [x for x in self.pedal_list if (x[1]>=(current_visualize_line)*bar_duration*4 and x[0] < (current_visualize_line + 1) * bar_duration*4)]
-            for pedal in control_segment:
-                pedal_start_time, pedal_end_time, correctness, color = pedal
-                start_time_within_line =  pedal_start_time >= (current_visualize_line) * bar_duration*4
-                end_time_within_line = pedal_end_time < (current_visualize_line + 1) * bar_duration*4
-                y1 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff + 5
-                y2 = self.y_intercept + (self.screen_height * 2 / 3) * current_visualize_line + self.screen_height / 4 + self.control_y_diff + 15
-                if start_time_within_line: # start is in this line
-                    x1 = self.x_intercept + (pedal_start_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                else:                      # start is in the last line
-                    x1 = self.x_intercept
-                if end_time_within_line: # end is in this line
-                    x2 = self.x_intercept + (pedal_end_time - current_visualize_line * bar_duration * 4) * self.scaling_factor
-                else:                    # end is in the next line
-                    x2 = self.x_intercept + (bar_duration * 4) * self.scaling_factor
-                if not start_time_within_line: # start is in the last line 」
-                    points = [(x1, y2), (x2, y2), (x2, y1)]
-                elif not end_time_within_line: # end is in the next line ﹂
-                    points = [(x1, y1), (x1, y2), (x2, y2)]
-                else:
-                    points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
-                pygame.draw.lines(self.report_surface, color, False, points, width=3) #width default 1
-
-        # Draw the performance report text
+        # 報表文字(Performance Metrics等)繪製
         report_lines = self.performance_report.split('\n')
+        line_height = 20
+        header_y = 20
         for i, line in enumerate(report_lines):
-            text = self.font_report.render(line, True, (0, 0, 0))
-            self.report_surface.blit(text, (20, self.surface_height - 400 + i * 20))
+            if line.strip() in ["Performance Metrics", "AI Comments", "Color Representation"]:
+                text_surface = self.font_report_title.render(line, True, (0, 0, 0))
+            else:
+                text_surface = self.font_report.render(line, True, (0, 0, 0))
+            self.report_surface.blit(text_surface, (20, header_y + i * line_height))
 
-        # Draw the close button with hover effect
+        #1212: draw ar_vl_plot on the report ui
+        if self.ar_vl_path is not None:
+            self.ar_vl_plot_loc_x = self.screen_width / 2
+            self.ar_vl_plot_loc_y = header_y
+            self.ar_vl_plot_width = self.screen_width / 3
+            ar_vl_text_surface = self.font_report_title.render("The Arousal-Valence Model", True, (0, 0, 0))
+            self.report_surface.blit(ar_vl_text_surface, (self.ar_vl_plot_loc_x, self.ar_vl_plot_loc_y))
+
+            # Load the ar_vl plot image
+        
+            self.ar_vl = pygame.image.load(self.ar_vl_path)
+
+            # Get the original dimensions of the logo
+            original_width, original_height = self.ar_vl.get_size()
+
+            # Define the desired width or height, maintaining aspect ratio
+            desired_width = self.ar_vl_plot_width  # Set your desired width
+            scaling_factor = desired_width / original_width
+            new_width = int(original_width * scaling_factor)
+            new_height = int(original_height * scaling_factor)
+
+            # Resize the ar_vl plot while keeping its shape
+            self.ar_vl = pygame.transform.smoothscale(self.ar_vl, (new_width, new_height))
+            self.report_surface.blit(self.ar_vl, (self.ar_vl_plot_loc_x, self.ar_vl_plot_loc_y + 40))  # Coordinates (self.screen_width / 2, 10) for some padding from the edges
+
+
+        # After drawing the report text, we start drawing the notes lower down
+        # Move the music visualization down after the report text
+        visualize_offset_y = header_y + (len(report_lines) * line_height) + 40
+        # Adjust the intercept so that notes start below the report text
+        base_y_intercept = self.y_intercept + visualize_offset_y
+
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_x, mouse_y = mouse_pos
+        mouse_y_adjusted = mouse_y + self.scroll_y  # Adjust for scrolling
+
+        # 將水平滾動區域高度加大一些，讓底部 boundary line 更往下
+        self.horizontal_scroll_surface_width = self.screen_width * amount_of_lines * horizontal_length_factor
+        self.horizontal_scroll_surface_height = (self.screen_height * 2 / 3 * bar_scale_factor) - 180
+        self.horizontal_scroll_surface = pygame.Surface((int(self.horizontal_scroll_surface_width), int(self.horizontal_scroll_surface_height)))
+        self.horizontal_scroll_surface.fill((255, 255, 255))  # 白底
+        self.horizontal_scroll_speed = self.screen_width * 2 / 8
+        self.horizontal_scroll_surface_mouse_pos_rect = pygame.Rect(
+            0, visualize_offset_y - self.scroll_y, 
+            self.screen_width, (self.screen_height * 2 / 3)
+        )
+
+        note_rects = []
+        ref_syllables_to_draw = []
+
+        # 繪製 reference notes (灰色) 並放大水平長度
+        for pitch, start, end, velocity in self.ref_notes:
+            y = (self.screen_height * 2 / 9) - (pitch - 71) * self.pitch_y_diff
+            x = self.x_intercept + start * self.scaling_factor * horizontal_length_factor
+            width = (end - start) * self.scaling_factor * horizontal_length_factor
+            ref_rect = pygame.Rect(x, y, width, note_thickness)
+            pygame.draw.rect(self.horizontal_scroll_surface, (210, 210, 210), ref_rect)
+
+            # 預先計算 syllable，稍後最後再畫
+            pitch_class = pitch % 12
+            syllable = self.pitch_class_to_syllable.get(pitch_class, '')
+            if syllable:
+                syllable_text_surface = self.font_note.render(syllable, True, (0,0,0))
+                # 將文字放在 bar 左側(略向右 2 px)，並垂直置中
+                text_x = x + 2
+                text_y = y + (note_thickness - syllable_text_surface.get_height()) / 2
+                ref_syllables_to_draw.append((syllable_text_surface, text_x, text_y))
+
+        # 繪製 student notes，同樣水平延伸
+        for note in self.note_list:
+            pitch, start, end, correct, color, velocity = note
+            y = (self.screen_height * 2 / 9) - (pitch - 71) * self.pitch_y_diff
+            x = self.x_intercept + start * self.scaling_factor * horizontal_length_factor
+            width = (end - start) * self.scaling_factor * horizontal_length_factor
+            stu_rect = pygame.Rect(x, y, width, note_thickness)
+            pygame.draw.rect(self.horizontal_scroll_surface, color, stu_rect)
+            note_rects.append((stu_rect, pitch, velocity))
+
+        # 繪製 reference pedal，水平與notes同樣延伸
+        # 並將 Y 座標下移 (透過 bar_scale_factor 放大 control_y_diff)
+        pedal_y_offset = (self.screen_height * 1 / 9) + (self.control_y_diff * bar_scale_factor)
+        first_control = True
+        last_control = -1
+        for number, value, time in self.ref_control:
+            if number == 64:
+                if value == 0: # release
+                    if first_control:
+                        y1 = pedal_y_offset
+                        y2 = y1 + 10
+                        x1 = self.x_intercept
+                        x2 = self.x_intercept + time * self.scaling_factor * horizontal_length_factor
+                        points = [(x1, y2), (x2, y2), (x2, y1)]
+                        pygame.draw.lines(self.horizontal_scroll_surface, (190, 190, 190), False, points, width=3)
+                        first_control = False
+                    else:
+                        y1 = pedal_y_offset
+                        y2 = y1 + 10
+                        x1 = self.x_intercept + pedal_pressed_time * self.scaling_factor * horizontal_length_factor
+                        x2 = self.x_intercept + time * self.scaling_factor * horizontal_length_factor
+                        points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
+                        pygame.draw.lines(self.horizontal_scroll_surface, (190, 190, 190), False, points, width=3)
+                elif value > 0: # pressed
+                    pedal_pressed_time = time
+                    if first_control:
+                        first_control = False
+                last_control = value
+            else:
+                continue
+
+        if last_control > 0: # pedal pressed and unreleased
+            y1 = pedal_y_offset
+            y2 = y1 + 10
+            x1 = self.x_intercept + pedal_pressed_time * self.scaling_factor * horizontal_length_factor
+            x2 = self.x_intercept + (bar_duration * 4) * amount_of_lines * self.scaling_factor * horizontal_length_factor
+            points = [(x1, y1), (x1, y2), (x2, y2)]
+            pygame.draw.lines(self.horizontal_scroll_surface, (190, 190, 190), False, points, width=3)
+
+        # Student pedal 同樣延伸與下移
+        for pedal in self.pedal_list:
+            pedal_start_time, pedal_end_time, correctness, color = pedal
+            y1 = pedal_y_offset   # 再略往下移動，和reference pedal有區隔
+            y2 = y1 + 10
+            x1 = self.x_intercept + pedal_start_time * self.scaling_factor * horizontal_length_factor
+            x2 = self.x_intercept + pedal_end_time * self.scaling_factor * horizontal_length_factor
+            points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1)]
+            pygame.draw.lines(self.horizontal_scroll_surface, color, False, points, width=3)
+
+        # 繪製 close, print, settings 按鈕
         close_button_x = (self.screen_width - 100) // 4
         close_button_y = self.surface_height - 100
         self.close_button_rect = pygame.Rect(close_button_x, close_button_y, 100, 40)
-        
 
-        # Draw the print button with hover effect
         print_button_x = (self.screen_width - 100) * 2 // 4
         print_button_y = self.surface_height - 100
         self.print_button_rect = pygame.Rect(print_button_x, print_button_y, 100, 40)
 
-        # Draw the settings button with hover effect
         settings_button_x = (self.screen_width - 100) * 3 // 4
         settings_button_y = self.surface_height - 100
         self.report_settings_button_rect = pygame.Rect(settings_button_x, settings_button_y, 100, 40)
@@ -1875,43 +1951,57 @@ class DynamicMusicSheet:
         self.emulate_report_settings_button_rect = pygame.Rect(settings_button_x, settings_button_y - self.scroll_y, 100, 40)
 
         mouse_pos = pygame.mouse.get_pos()
-
-        # Change color if mouse is over the close button
         if self.emulate_close_button_rect.collidepoint(mouse_pos):
-            close_button_color = (173, 216, 230)  # Light blue on hover
+            close_color = (173, 216, 230)
         else:
-            close_button_color = (200, 200, 200)  # Gray as default
+            close_color = (200, 200, 200)
 
-        # Change color if mouse is over the close button
         if self.emulate_print_button_rect.collidepoint(mouse_pos):
-            print_button_color = (173, 216, 230)  # Light blue on hover
+            print_color = (173, 216, 230)
         else:
-            print_button_color = (200, 200, 200)  # Gray as default
+            print_color = (200, 200, 200)
 
-        # Change color if mouse is over the close button
         if self.emulate_report_settings_button_rect.collidepoint(mouse_pos):
-            settings_button_color = (173, 216, 230)  # Light blue on hover
+            settings_color = (173, 216, 230)
         else:
-            settings_button_color = (200, 200, 200)  # Gray as default
+            settings_color = (200, 200, 200)
 
-        #pygame.draw.rect(self.report_surface, close_button_color, self.close_button_rect)  # Close button background
-        #close_text = self.font_title.render("Close", True, (0, 0, 0))  # Close button text
         self.draw_button_with_shadow(self.report_surface, self.close_button_rect, "Close", self.font_title, active=False)
-        #self.report_surface.blit(close_text, self.close_button_rect.move(10, 10))
-
-        #pygame.draw.rect(self.report_surface, print_button_color, self.print_button_rect)  # Close button background
-        #print_text = self.font_title.render("Print", True, (0, 0, 0))  # Close button text
         self.draw_button_with_shadow(self.report_surface, self.print_button_rect, "Print", self.font_title, active=False)
-        #self.report_surface.blit(print_text, self.print_button_rect.move(10, 10))
-
-        #pygame.draw.rect(self.report_surface, settings_button_color, self.report_settings_button_rect)  # settings button background
-        #settings_text = self.font_title.render("settings", True, (0, 0, 0))  # settings button text
         self.draw_button_with_shadow(self.report_surface, self.report_settings_button_rect, "Settings", self.font_title, active=False)
-        #self.report_surface.blit(settings_text, self.report_settings_button_rect.move(10, 10))
 
+        # 判定滑鼠 hover 在 note 上的 tooltip
+        for rect, pitch, velocity in note_rects:
+            adjusted_rect = pygame.Rect(rect.x - self.scroll_x, rect.y + visualize_offset_y - self.scroll_y, rect.width, rect.height)
+            if adjusted_rect.collidepoint(mouse_pos):
+                pitch_class = pitch % 12
+                syllable = self.pitch_class_to_syllable.get(pitch_class, '')
+                tooltip_text = f"P{pitch} V{velocity} {syllable}"
+                self.draw_tooltip(self.horizontal_scroll_surface, tooltip_text, mouse_x + self.scroll_x, mouse_y - visualize_offset_y + self.scroll_y)
+                break
 
+        # 最後繪製 reference syllables，確保不被學生音符遮擋
+        for syllable_surface, sx, sy in ref_syllables_to_draw:
+            self.horizontal_scroll_surface.blit(syllable_surface, (sx, sy))
+
+        #boundary of horizontal scroll surface 調整後下邊界
+        testing = True
+        if testing:
+            pygame.draw.line(self.horizontal_scroll_surface, (0, 0, 0), (0, 0), (self.horizontal_scroll_surface_width, 0), 3)
+            pygame.draw.line(
+                self.horizontal_scroll_surface, (0, 0, 0),
+                (0, self.horizontal_scroll_surface_height - 1),
+                (self.horizontal_scroll_surface_width, self.horizontal_scroll_surface_height - 1),
+                3
+            )
 
         self.screen.blit(self.report_surface, (0, -self.scroll_y))
+        self.screen.blit(self.horizontal_scroll_surface, (-self.scroll_x, visualize_offset_y - self.scroll_y))
+
+        
+        
+
+
 
     def update_bpm_and_tolerance(self, new_bpm, new_time_tolerance):
         self.BPM = new_bpm
@@ -2167,9 +2257,15 @@ class DynamicMusicSheet:
                             self.handle_text_input(event, target="report_settings_velocity_tolerance")
 
                 elif event.type == pygame.MOUSEWHEEL:
+                    mouse_pos = pygame.mouse.get_pos()
+                    #horizontal_scroll_surface_mouse_pos_rect
                     if self.showing_report:
-                        self.scroll_y -= event.y * self.scroll_speed
-                        self.scroll_y = max(0, min(self.scroll_y, self.surface_height - self.screen_height))  # Keep scroll within bounds
+                        if self.horizontal_scroll_surface_mouse_pos_rect.collidepoint(mouse_pos):
+                            self.scroll_x -= event.y * self.horizontal_scroll_speed
+                            self.scroll_x = max(0, min(self.scroll_x, self.horizontal_scroll_surface_width - self.screen_width))  # Keep scroll within bounds
+                        else:
+                            self.scroll_y -= event.y * self.scroll_speed
+                            self.scroll_y = max(0, min(self.scroll_y, self.surface_height - self.screen_height))  # Keep scroll within bounds
 
             # 清空畫面
             self.screen.fill((0, 0, 0))
@@ -2289,3 +2385,4 @@ class DynamicMusicSheet:
 if __name__ == "__main__":
     app = DynamicMusicSheet()
     app.run()
+
