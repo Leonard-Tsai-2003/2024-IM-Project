@@ -366,8 +366,13 @@ def draw_ar_vl_path(reference, student, output_path=None):
 
     if output_path != None:
         plt.savefig(f"{output_path}", transparent=True, bbox_inches="tight")
+        return_path = output_path
     else:
-        plt.savefig(f"./emopia/{time.strftime('%Y%m%d-%H%M%S')}.png", transparent=True, bbox_inches="tight")
+        return_path = f"./emopia/{time.strftime('%Y%m%d-%H%M%S')}.png"
+        plt.savefig(return_path, transparent=True, bbox_inches="tight")
+    
+    return return_path
+
     # plt.show()
 
 
