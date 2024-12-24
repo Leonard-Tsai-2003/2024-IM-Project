@@ -193,6 +193,7 @@ class DynamicMusicSheet:
         # Add a new attribute for the close button
         self.close_button_rect = None
         self.showing_report = False
+        self.showing_mask_surface = False
         
         # Midi Input Info Initialization
         pygame.midi.init()
@@ -1625,6 +1626,9 @@ class DynamicMusicSheet:
             print(self.performance_report)
             if making_report_record:
                 self.make_report_record()
+        self.scroll_x = 0
+        self.scroll_y = 0
+        time.sleep(3)
         
     def create_file_if_not_exist(self, path):
         # Extract the directory from the path
@@ -1825,6 +1829,7 @@ class DynamicMusicSheet:
 
 
     def draw_report(self):
+
         self.y_intercept = self.screen_height * 1 / 4
         self.x_intercept = self.screen_width / 10
 
@@ -2064,11 +2069,44 @@ class DynamicMusicSheet:
                 3
             )
 
+
+        
+
         self.screen.blit(self.report_surface, (0, -self.scroll_y))
         self.screen.blit(self.horizontal_scroll_surface, (-self.scroll_x, visualize_offset_y - self.scroll_y))
 
         
-        
+    def draw_mask_surface(self):
+        # Semi-transparent background
+        s = pygame.Surface((self.screen_width, self.screen_height))
+        s.set_alpha(150)
+        s.fill((0, 0, 0))
+        self.screen.blit(s, (0, 0))
+
+        # Settings menu box
+        menu_width = 300
+        menu_height = 200
+        menu_x = (self.screen_width - menu_width) // 2
+        menu_y = (self.screen_height - menu_height) // 2
+        menu_rect = pygame.Rect(menu_x, menu_y, menu_width, menu_height)
+        pygame.draw.rect(self.screen, (240, 240, 240), menu_rect, border_radius=10)
+
+        mask_close_button_x = menu_x + 50
+        mask_close_button_y =  menu_y + 130
+        self.mask_close_button_rect = pygame.Rect(mask_close_button_x, mask_close_button_y, 80, 30)
+        self.draw_button_with_shadow(self.screen, self.mask_close_button_rect, "View", self.font_title, active=False)
+
+        mask_abort_button_x = menu_x + 170
+        mask_abort_button_y =  menu_y + 130
+        self.mask_abort_button_rect = pygame.Rect(mask_abort_button_x, mask_abort_button_y, 80, 30)
+        self.draw_button_with_shadow(self.screen, self.mask_abort_button_rect, "Retry", self.font_title, active=False)
+
+        mask_text_surface = self.font_title.render("Your report has been", True, (0, 0, 0)) 
+        mask_text_surface_2 = self.font_title.render("successfully generated!", True, (0, 0, 0))
+        text_rect1 = mask_text_surface.get_rect(center=(menu_x + menu_width / 2, menu_y + 50))
+        text_rect2 = mask_text_surface_2.get_rect(center=(menu_x + menu_width / 2, menu_y + 90))
+        self.screen.blit(mask_text_surface, text_rect1)
+        self.screen.blit(mask_text_surface_2, text_rect2)
 
 
 
@@ -2237,24 +2275,33 @@ class DynamicMusicSheet:
                         self.toggle_recording()
                         if not self.is_recording.is_set():
                             self.showing_report = True
+                            self.showing_mask_surface = True
                             #self.re_adjust_note_list() # moved to stop_recording()
                             self.report_compare_with_tolerance(self.time_tolerance, self.velocity_tolerance) #compare note_list with tolerance to get new color
 
                     elif self.showing_report and not self.showing_report_settings_menu:#main/report #draw_report
-                        if self.emulate_close_button_rect.collidepoint(mouse_pos): #close button
-                            self.showing_report = False
-                            self.reset_for_new_session()
+                        if self.showing_mask_surface:
+                            if self.mask_close_button_rect.collidepoint(mouse_pos):
+                                self.showing_mask_surface = False
+                            elif self.mask_abort_button_rect.collidepoint(mouse_pos):
+                                self.showing_mask_surface = False
+                                self.showing_report = False
+                        else:
+                            if self.emulate_close_button_rect.collidepoint(mouse_pos): #close button
+                                self.showing_report = False
+                                self.showing_mask_surface = False
+                                self.reset_for_new_session()
 
-                        elif self.emulate_print_button_rect.collidepoint(mouse_pos): #print button
-                            print("clicked")
-                            self.save_content_to_pdf(self.report_surface)
+                            elif self.emulate_print_button_rect.collidepoint(mouse_pos): #print button
+                                print("clicked")
+                                self.save_content_to_pdf(self.report_surface)
 
-                        elif self.emulate_report_settings_button_rect.collidepoint(mouse_pos): # settings button
-                            self.showing_report_settings_menu = True
-                            self.report_time_tolerance_input_active = False
-                            self.report_velocity_tolerance_input_active = False
-                            self.report_time_tolerance_text = str(self.time_tolerance)
-                            self.report_velocity_tolerance_text = str(self.velocity_tolerance)
+                            elif self.emulate_report_settings_button_rect.collidepoint(mouse_pos): # settings button
+                                self.showing_report_settings_menu = True
+                                self.report_time_tolerance_input_active = False
+                                self.report_velocity_tolerance_input_active = False
+                                self.report_time_tolerance_text = str(self.time_tolerance)
+                                self.report_velocity_tolerance_text = str(self.velocity_tolerance)
                             
 
                     elif self.showing_report and self.showing_report_settings_menu: #main/report/settings #draw_report_settings
@@ -2393,7 +2440,10 @@ class DynamicMusicSheet:
 
             # 畫出設定和報告
             if self.showing_report:
-                self.draw_report()
+                if self.showing_mask_surface:
+                    self.draw_mask_surface()
+                else:
+                    self.draw_report()
                 if self.showing_report_settings_menu:
                     self.draw_report_settings_menu()
             if self.show_settings_menu:
