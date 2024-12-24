@@ -2201,7 +2201,7 @@ class DynamicMusicSheet:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = event.pos
 
-                    if self.record_button_rect.collidepoint(mouse_pos) and not self.show_settings_menu and not self.animation_menu_active:
+                    if self.record_button_rect.collidepoint(mouse_pos) and not self.show_settings_menu and not self.animation_menu_active and not self.showing_report:
                         self.toggle_recording()
                         if not self.is_recording.is_set():
                             self.showing_report = True
