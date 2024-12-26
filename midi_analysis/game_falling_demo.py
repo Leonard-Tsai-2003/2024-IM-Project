@@ -21,9 +21,9 @@ import json
 
 BPM_global = 108
 
-making_report_record = True
-loading_report_record = False
-report_record_filepath = "./temporary_files/report_record_20241224-100057.json"
+making_report_record = False
+loading_report_record = True
+report_record_filepath = "./temporary_files/backup100.json"
 
 class FireParticle:
     def __init__(self, x, y):
